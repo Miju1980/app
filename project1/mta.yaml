@@ -1,0 +1,79 @@
+_schema-version: "3.1"
+ID: project1
+description: An SAP Fiori application.
+version: 0.0.1
+modules:
+- name: project1-srv
+  type: nodejs
+  path: gen/srv
+  provides:
+  - name: srv-api
+    properties:
+      srv-url: ${default-url}
+  parameters:
+    buildpack: nodejs_buildpack
+    readiness-health-check-http-endpoint: /health
+    readiness-health-check-type: http
+  build-parameters:
+    builder: npm
+- name: project1-destination-content
+  type: com.sap.application.content
+  requires:
+  - name: project1-destination-service
+    parameters:
+      content-target: true
+  - name: project1_html_repo_host
+    parameters:
+      service-key:
+        name: project1_html_repo_host-key
+  - name: uaa_project1
+    parameters:
+      service-key:
+        name: uaa_project1-key
+  parameters:
+    content:
+      instance:
+        destinations:
+        - Name: myapp_project1_html_repo_host
+          ServiceInstanceName: project1-html5-app-host-service
+          ServiceKeyName: project1_html_repo_host-key
+          sap.cloud.service: myapp
+        - Authentication: OAuth2UserTokenExchange
+          Name: myapp_uaa_project1
+          ServiceInstanceName: project1-xsuaa-service
+          ServiceKeyName: uaa_project1-key
+          sap.cloud.service: myapp
+        existing_destinations_policy: ignore
+  build-parameters:
+    no-source: true
+resources:
+- name: project1-destination-service
+  type: org.cloudfoundry.managed-service
+  parameters:
+    config:
+      HTML5Runtime_enabled: true
+      version: 1.0.0
+    service: destination
+    service-name: project1-destination-service
+    service-plan: lite
+- name: project1_html_repo_host
+  type: org.cloudfoundry.managed-service
+  parameters:
+    service: html5-apps-repo
+    service-name: project1-html5-app-host-service
+    service-plan: app-host
+- name: uaa_project1
+  type: org.cloudfoundry.managed-service
+  parameters:
+    path: ./xs-security.json
+    service: xsuaa
+    service-name: project1-xsuaa-service
+    service-plan: application
+parameters:
+  enable-parallel-deployments: true
+build-parameters:
+  before-all:
+  - builder: custom
+    commands:
+    - npm ci
+    - npx cds build --production
